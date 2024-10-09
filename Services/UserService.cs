@@ -13,6 +13,7 @@ public interface IUserService
     Task<(bool Success, string Message)> ResetPasswordAsync(string email, string token, string newPassword);
     Task<(bool Success, string Message)> SendPasswordResetEmailAsync(string email);
     Task<(bool Success, string Message)> DeleteSessionAsync(string refreshToken, string ipAddress);
+    Task<(bool Success, string Message)> RevokeAllUserTokensAsync(int userId, string ipAddress);
     Task<User> GetUserAsync(int userId);
 }
 
@@ -109,8 +110,11 @@ public class UserService : IUserService
 
         if (user == null || user.PasswordResetToken != token || user.PasswordResetTokenExpires < DateTime.UtcNow)
         {
-            return (false, "Invalid token");
+            return (false, "Invalid or expired reset token");
         }
+
+        // Double-check that all tokens are revoked
+        await RevokeAllUserTokensAsync(user.Id, "Password Reset");
 
         user.PasswordHash = BC.HashPassword(newPassword);
         user.PasswordResetToken = null;
@@ -118,7 +122,34 @@ public class UserService : IUserService
 
         await _userRepository.UpdateUserAsync(user);
 
+        // Notify user about password change
+        await _emailService.SendPasswordResetSuccessEmailAsync(user);
+
         return (true, "Password reset successfully");
+    }
+
+    public async Task<(bool Success, string Message)> RevokeAllUserTokensAsync(int userId, string ipAddress)
+    {
+        try
+        {
+            var user = await _userRepository.GetUserByIdAsync(userId);
+            if (user == null) return (false, "User not found");
+
+            // Revoke all active refresh tokens
+            foreach (var token in user.RefreshTokens.Where(t => t.IsActive))
+            {
+                token.Revoked = DateTime.UtcNow;
+                token.RevokedByIp = ipAddress;
+                token.ReplacedByToken = null;
+            }
+
+            await _userRepository.UpdateUserAsync(user);
+            return (true, "All tokens revoked successfully");
+        }
+        catch (Exception)
+        {
+            return (false, "Failed to revoke tokens");
+        }
     }
 
     public async Task<(bool Success, string Message)> SendPasswordResetEmailAsync(string email)
@@ -127,16 +158,25 @@ public class UserService : IUserService
 
         if (user == null)
         {
-            return (false, "User not found");
+            // Still return success to prevent email enumeration
+            return (true, "If a user with this email exists, they will receive password reset instructions");
         }
 
+        // Generate new reset token
         user.PasswordResetToken = GenerateRandomToken();
         user.PasswordResetTokenExpires = DateTime.UtcNow.AddHours(1);
 
+        // Revoke all existing refresh tokens
+        var revokeResult = await RevokeAllUserTokensAsync(user.Id, "Password Reset");
+        if (!revokeResult.Success)
+        {
+            return (false, "Failed to process password reset request");
+        }
+
         await _userRepository.UpdateUserAsync(user);
 
-        // Send password reset email
-        await _emailService.SendEmailAsync(user.Email, "Reset your password", $"Click the following link to reset your password: [reset link]?token={user.PasswordResetToken}");
+        var resetLink = $"{_configuration["AppUrl"]}/reset-password?token={user.PasswordResetToken}&email={email}";
+        await _emailService.SendPasswordResetEmailAsync(user, resetLink);
 
         return (true, "Password reset email sent");
     }

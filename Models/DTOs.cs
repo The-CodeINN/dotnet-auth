@@ -40,9 +40,9 @@ public class VerifyEmailDto
     public string Email { get; set; }
 }
 
-public class ProductDto
+public class CreateProductDto
 {
-    [NotEmpty]
+    [Required]
     [StringLength(100)]
     public string Name { get; set; }
 
@@ -53,9 +53,37 @@ public class ProductDto
     [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
     public decimal Price { get; set; }
 
-    [NotEmpty]
+    [Required]
     [StringLength(50)]
     public string Category { get; set; }
+}
+
+public class UpdateProductDto
+{
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; }
+
+    [StringLength(500)]
+    public string Description { get; set; }
+
+    [Required]
+    [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
+    public decimal Price { get; set; }
+
+    [Required]
+    [StringLength(50)]
+    public string Category { get; set; }
+}
+
+public class ProductResponseDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public decimal Price { get; set; }
+    public string Category { get; set; }
+    public int UserId { get; set; }
 }
 
 public class ResetPasswordDto

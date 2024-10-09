@@ -11,7 +11,7 @@ using dotnet_auth.Data;
 namespace dotnet_auth.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241009070137_NewMigration")]
+    [Migration("20241009122301_NewMigration")]
     partial class NewMigration
     {
         /// <inheritdoc />
@@ -41,7 +41,12 @@ namespace dotnet_auth.Migrations
                     b.Property<decimal>("Price")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Products");
                 });
@@ -98,7 +103,7 @@ namespace dotnet_auth.Migrations
                     b.Property<string>("EmailConfirmationToken")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("EmailConfirmationTokenExpiresAt")
+                    b.Property<DateTime?>("EmailConfirmationTokenExpires")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FirstName")
@@ -119,7 +124,7 @@ namespace dotnet_auth.Migrations
                     b.Property<string>("PasswordResetToken")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("PasswordResetTokenExpiresAt")
+                    b.Property<DateTime?>("PasswordResetTokenExpires")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -128,6 +133,17 @@ namespace dotnet_auth.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("dotnet_auth.Models.Product", b =>
+                {
+                    b.HasOne("dotnet_auth.Models.User", "User")
+                        .WithMany("Products")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("dotnet_auth.Models.RefreshToken", b =>
@@ -143,6 +159,8 @@ namespace dotnet_auth.Migrations
 
             modelBuilder.Entity("dotnet_auth.Models.User", b =>
                 {
+                    b.Navigation("Products");
+
                     b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
