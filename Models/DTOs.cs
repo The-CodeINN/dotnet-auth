@@ -32,6 +32,14 @@ public class LoginDto
     public string Password { get; set; }
 }
 
+
+public class VerifyEmailDto
+{
+    [Required]
+    public string Token { get; set; }
+    public string Email { get; set; }
+}
+
 public class ProductDto
 {
     [NotEmpty]

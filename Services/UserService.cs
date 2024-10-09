@@ -9,6 +9,7 @@ public interface IUserService
     Task<(bool Success, string Message)> RegisterUserAsync(User user, string password);
     Task<(bool Success, string Message, string AccessToken, string RefreshToken)> LoginUserAsync(string email, string password, string ipAddress);
     Task<(bool Success, string Message, string AccessToken, string RefreshToken)> RefreshTokenAsync(string refreshToken, string ipAddress);
+    Task<(bool Success, string Message)> VerifyEmailAsync(string email, string token);
     Task<(bool Success, string Message)> ResetPasswordAsync(string email, string token, string newPassword);
     Task<(bool Success, string Message)> SendPasswordResetEmailAsync(string email);
     Task<(bool Success, string Message)> DeleteSessionAsync(string refreshToken, string ipAddress);
@@ -33,10 +34,7 @@ public class UserService : IUserService
 
     public async Task<(bool Success, string Message)> RegisterUserAsync(User user, string password)
     {
-        Console.WriteLine("existingUser: ");
-
         var existingUser = await _userRepository.GetUserByEmailAsync(user.Email);
-        Console.WriteLine("existingUser: " + existingUser);
         if (existingUser != null)
         {
             return (false, "User already exists");
@@ -50,7 +48,7 @@ public class UserService : IUserService
         var createdUser = await _userRepository.CreateUserAsync(user);
 
         // Send confirmation email
-        var confirmationLink = $"{_configuration["AppUrl"]}/confirm-email?token={user.EmailConfirmationToken}&email={user.Email}";
+        var confirmationLink = $"{_configuration["AppUrl"]}/email/verify/{user.EmailConfirmationToken}";
         await _emailService.SendConfirmationEmailAsync(user, confirmationLink);
 
         // Send welcome email
@@ -64,7 +62,7 @@ public class UserService : IUserService
 
         if (user == null || !BC.Verify(password, user.PasswordHash))
         {
-            return (false, "Invalid credentials", null, null);
+            return (false, "Invalid email or password", null, null);
         }
 
         if (!user.IsEmailConfirmed)

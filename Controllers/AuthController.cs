@@ -29,9 +29,9 @@ public class AuthController : ControllerBase
         var result = await _userService.RegisterUserAsync(user, model.Password);
 
         if (!result.Success)
-            return BadRequest(result.Message);
+            return BadRequest(new { message = result.Message });
 
-        return Ok(result.Message);
+        return Ok(new { message = result.Message });
     }
 
     [HttpPost("login")]
@@ -40,14 +40,15 @@ public class AuthController : ControllerBase
         var result = await _userService.LoginUserAsync(model.Email, model.Password, GetIpAddress());
 
         if (!result.Success)
-            return BadRequest(result.Message);
+            return BadRequest(new { message = result.Message });
 
         SetRefreshTokenCookie(result.RefreshToken);
 
         return Ok(new
         {
-            AccessToken = result.AccessToken,
-            Message = result.Message
+            user = new { email = model.Email },
+            accessToken = result.AccessToken,
+            message = result.Message
         });
     }
 
@@ -58,14 +59,14 @@ public class AuthController : ControllerBase
         var result = await _userService.RefreshTokenAsync(refreshToken, GetIpAddress());
 
         if (!result.Success)
-            return BadRequest(result.Message);
+            return BadRequest(new { message = result.Message });
 
         SetRefreshTokenCookie(result.RefreshToken);
 
         return Ok(new
         {
-            result.AccessToken,
-            result.Message
+            accessToken = result.AccessToken,
+            message = result.Message
         });
     }
 
@@ -74,16 +75,28 @@ public class AuthController : ControllerBase
     {
         var refreshToken = Request.Cookies["refreshToken"];
         if (string.IsNullOrEmpty(refreshToken))
-            return BadRequest("No refresh token provided");
+            return BadRequest(new { message = "No refresh token provided" });
 
         var result = await _userService.DeleteSessionAsync(refreshToken, GetIpAddress());
 
         if (!result.Success)
-            return BadRequest(result.Message);
+            return BadRequest(new { message = result.Message });
 
         Response.Cookies.Delete("refreshToken");
-        return Ok(result.Message);
+        return Ok(new { message = result.Message });
     }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto model)
+    {
+        var result = await _userService.VerifyEmailAsync(model.Email, model.Token);
+
+        if (!result.Success)
+            return BadRequest(new { message = result.Message });
+
+        return Ok(new { message = result.Message });
+    }
+
 
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto model)
